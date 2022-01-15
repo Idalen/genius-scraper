@@ -35,14 +35,17 @@ def get_songs_path(artist_id):
    return song_paths
 
 def get_lyrics(path):
+   
    source_data = requests.get(SONG_MAIN_URL.format(path)).content
    soup = BeautifulSoup(source_data, 'html.parser')
-   text = soup.find('div', {'data-lyrics-container': 'true'}).decode_contents().strip().replace("<br/>", ' ')
-   lyrics = re.sub('\[*.\]', '', text)
+   text = soup.find('div', {'data-lyrics-container': 'true'}).decode_contents().strip()
+   raw_lyrics = re.sub(r"\<[^\>]+\>", ' ', text)
+   raw_lyrics = re.sub(r"\([^\)]+\)", '', raw_lyrics)
+   lyrics = re.sub(r"\[[^\]]+\]", '', raw_lyrics)
 
    return lyrics
 
-artist = " ".join(sys.argv[1:])
+artist = "-".join(sys.argv[1:])
 artist_main_url = ARTIST_MAIN_URL.format(artist)
                          
 print(f'Get {artist_main_url}')
@@ -54,7 +57,11 @@ songs_path = get_songs_path(artist_id)
 
 for path in songs_path:
    print(f"Get {SONG_MAIN_URL.format(path)}")
-   lyrics = get_lyrics(path)
+   
+   try:
+      lyrics = get_lyrics(path)
+   except e:
+      print(e)
 
    bow = {}
    for word in lyrics.split(" "):
@@ -68,7 +75,8 @@ for path in songs_path:
          bow[word]+=1
       else:
          bow[word]=1
-      
+
+
 os.makedirs("./output", exist_ok=True)
 
 wordcloud = WordCloud(width = 800, height = 800,
