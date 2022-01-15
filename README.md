@@ -5,4 +5,4 @@ A crawler which generates a word cloud with the most frequent words in an artist
 ### Outputs
 
 - **My Bloody Valentine**
-![MBV](https://github.com/Idalen/genius-scraper/blob/master/output/my-bloody-valentine.png)
+<img src = "https://github.com/Idalen/genius-scraper/blob/master/output/my-bloody-valentine.png" width=70% height=70%>
