@@ -4,9 +4,11 @@ from lxml import etree
 import json
 import re
 
+import multiprocessing as mp
 import time
 import sys
 import os
+import operator
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
@@ -15,6 +17,8 @@ from nltk.corpus import stopwords
 SONG_MAIN_URL = "https://genius.com{}"
 ARTIST_MAIN_URL = "https://genius.com/artists/{}"
 SONGS_API_URL = 'https://genius.com/api/artists/{}/songs?page={}'
+
+lock = mp.Lock()
 
 def get_artist_id(url):
    source_data = requests.get(url).content
@@ -45,6 +49,33 @@ def get_lyrics(path):
 
    return lyrics
 
+def count_words(path, bow):
+   print(f"Get {SONG_MAIN_URL.format(path)}")
+   
+   try:
+      lyrics = get_lyrics(path)
+   except:
+      print("An error occurred")
+
+   for word in lyrics.split(" "):
+      word = word.lower()
+      word = re.sub(r'[\W_]+', '', word)
+      
+      if word in stopwords.words():
+         continue
+      
+      with lock:
+         if word in bow.keys():
+            bow[word]+=1
+         else:
+            bow[word]=1
+
+start = time.time()
+
+if(len(sys.argv) <= 1):
+   print("No input found...")
+   exit()
+
 artist = "-".join(sys.argv[1:])
 artist_main_url = ARTIST_MAIN_URL.format(artist)
                          
@@ -54,28 +85,13 @@ artist_id = get_artist_id(artist_main_url)
 print('Get songs path... (it may take a while)')
 songs_path = get_songs_path(artist_id)
 
+bow = mp.Manager().dict(lock=True)
+pool = mp.Pool(mp.cpu_count())
 
-for path in songs_path:
-   print(f"Get {SONG_MAIN_URL.format(path)}")
-   
-   try:
-      lyrics = get_lyrics(path)
-   except e:
-      print(e)
+pool.starmap(count_words,[(path, bow) for path in songs_path])
 
-   bow = {}
-   for word in lyrics.split(" "):
-      word = word.lower()
-      word = re.sub(r'[\W_]+', '', word)
-      
-      if word in stopwords.words():
-         continue
-      
-      if word in bow.keys():
-         bow[word]+=1
-      else:
-         bow[word]=1
-
+pool.close()
+pool.join()
 
 os.makedirs("./output", exist_ok=True)
 
@@ -89,3 +105,6 @@ plt.axis("off")
 plt.tight_layout(pad = 0)
  
 plt.savefig(f"./output/{artist}.png")
+
+end = time.time()
+print(end-start)
